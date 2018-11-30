@@ -1,0 +1,59 @@
+---
+- name: Autorization module
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: Create user using token
+      k8s:
+        api_key: ZGn5YIkdbGusLJENbwVt9BFdPSdHCIn75FvzsCeM4CE
+        state: present
+        name: test-fedora
+        namespace: default
+        inline:
+          apiVersion: kubevirt.io/v1alpha2
+          kind: VirtualMachine
+          metadata:
+            name: test-fedora
+            namespace: default
+            labels:
+              kubevirt.io/vm: test
+          spec:
+            running: false
+            template:
+              metadata:
+                labels:
+                  kubevirt.io/vm: test
+              spec:
+                domain:
+                  resources:
+                    requests:
+                      memory: 512M
+                  devices:
+                    disks:
+                    - disk:
+                        bus: virtio
+                      name: registrydisk
+                      volumeName: registryvolume
+                    - cdrom:
+                        bus: virtio
+                      name: cloudinitdisk
+                      volumeName: cloudinitvolume
+                volumes:
+                - name: registryvolume
+                  registryDisk:
+                    image: kubevirt/fedora-cloud-registry-disk-demo:latest
+                - name: cloudinitvolume
+                  cloudInitNoCloud:
+                    userData: |
+                      #cloud-config
+                      hostname: test-fedora
+                      users:
+                        - name: kubevirt
+                          gecos: KubeVirt Project
+                          sudo: ALL=(ALL) NOPASSWD:ALL
+                          passwd: $6$/hOv3djtWA7DJ3Tz$PufE5F29KS6mlI1lWHbD1WTQBHhrtIYdyNbWMKP0PbsY/YsRSn1sPEQSvYbPjXor3uqcYdAJY0XPx2JtJ6hBC1
+                          shell: /bin/bash
+                          home: /home/kubevirt
+                          lock_passwd: false
+                          ssh_authorized_keys:
+                              - "{{ lookup('file', '../test_rsa.pub') }}"
